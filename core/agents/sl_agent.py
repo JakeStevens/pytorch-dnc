@@ -147,7 +147,7 @@ class SLAgent(Agent):   # for supervised learning tasks
                 self.logger.warning("Resume Training @ Step: " + str(self.step))
                 should_start_new = True
 
-        print("Network time: " + str(elapsed_time)
+        print("Network time: " + str(elapsed_time))
         print("total time:", time.time() - self.start_time)
 
     def _eval_model(self):
