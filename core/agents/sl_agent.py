@@ -72,7 +72,7 @@ class SLAgent(Agent):   # for supervised learning tasks
                                 self.mask_ts[i,0,:].unsqueeze(0).unsqueeze(1),
                                 self.output_vb.data[i,0,:].unsqueeze(0).unsqueeze(1))
                 self.circuit.accessor.visual()
-                raw_input()
+                #raw_input()
 
         if not self.training and self.visualize:
             self.env.visual(input_ts, self.target_vb.data, self.mask_ts, self.output_vb.data)
@@ -106,19 +106,26 @@ class SLAgent(Agent):   # for supervised learning tasks
         self.step = 0
 
         should_start_new = True
+        elapsed_time = 0
         while self.step < self.steps:
             if should_start_new:
                 self._reset_experience()
                 self.experience = self.env.reset()
                 assert self.experience.state1 is not None
                 should_start_new = False
+            start = time.time()
             action = self._forward(self.experience.state1)
+            stop = time.time()
+            elapsed_time += stop - start
             self.experience = self.env.step(action)
             if self.experience.terminal1 or self.early_stop and (episode_steps + 1) >= self.early_stop:
                 should_start_new = True
 
             # calculate loss
+            start = time.time()
             loss = self._backward()
+            stop = time.time()
+            elapsed_time += stop - start
             self.training_loss_avg_log.append([loss])
 
             self.step += 1
@@ -140,6 +147,7 @@ class SLAgent(Agent):   # for supervised learning tasks
                 self.logger.warning("Resume Training @ Step: " + str(self.step))
                 should_start_new = True
 
+        print("Network time: " + str(elapsed_time)
         print("total time:", time.time() - self.start_time)
 
     def _eval_model(self):
@@ -150,6 +158,7 @@ class SLAgent(Agent):   # for supervised learning tasks
 
         eval_loss_avg_log = []
         eval_should_start_new = True
+        elapsed_time = 0
         while eval_step < self.eval_steps:
             if eval_should_start_new:
                 self._reset_experience()
@@ -158,7 +167,10 @@ class SLAgent(Agent):   # for supervised learning tasks
                 # if self.visualize: self.env.visual()
                 # if self.render: self.env.render()
                 eval_should_start_new = False
+            start = time.time()
             eval_action = self._forward(self.experience.state1)
+            stop = time.time()
+            elapsed_time += stop - start
             self.experience = self.env.step(eval_action)
             if self.experience.terminal1:# or self.early_stop and (episode_steps + 1) >= self.early_stop:
                 eval_should_start_new = True
@@ -175,7 +187,7 @@ class SLAgent(Agent):   # for supervised learning tasks
         if self.visualize:
             self.win_loss_avg = self.vis.scatter(X=np.array(self.loss_avg_log), env=self.refs, win=self.win_loss_avg, opts=dict(title="loss_avg"))
         # logging
-        self.logger.warning("Evaluation        Took: " + str(time.time() - eval_start_time))
+        self.logger.warning("Evaluation        Took: " + str(elapsed_time))
         self.logger.warning("Iteration: {}; loss_avg: {}".format(self.step, self.loss_avg_log[-1][1]))
 
         # save model
@@ -186,18 +198,22 @@ class SLAgent(Agent):   # for supervised learning tasks
         self.training = False
         self._reset_testing_loggings()
 
-        self.start_time = time.time()
         self.step = 0
 
         test_loss_avg_log = []
         test_should_start_new = True
+        time_elapsed = 0
+        self.start_time = time.time()
         while self.step < self.test_nepisodes:
             if test_should_start_new:
                 self._reset_experience()
                 self.experience = self.env.reset()
                 assert self.experience.state1 is not None
                 test_should_start_new = False
+            start = time.time()
             test_action = self._forward(self.experience.state1)
+            end = time.time()
+            time_elapsed += end - start
             self.experience = self.env.step(test_action)
             if self.experience.terminal1:# or self.early_stop and (episode_steps + 1) >= self.early_stop:
                 test_should_start_new = True
@@ -214,7 +230,7 @@ class SLAgent(Agent):   # for supervised learning tasks
         if self.visualize:
             self.win_loss_avg = self.vis.scatter(X=np.array(self.loss_avg_log), env=self.refs, win=self.win_loss_avg, opts=dict(title="loss_avg"))
         # logging
-        self.logger.warning("Testing  Took: " + str(time.time() - self.start_time))
+        self.logger.warning("Testing  Took: " + str(time_elapsed))
         self.logger.warning("Iteration: {}; loss_avg: {}".format(self.step, self.loss_avg_log[-1][1]))
 
         # save model
