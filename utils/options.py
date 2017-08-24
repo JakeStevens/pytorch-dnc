@@ -13,18 +13,20 @@ CONFIGS = [
 # agent_type, env_type,      game, circuit_type
 [ "empty",    "repeat-copy", "",   "none"      ],  # 0
 [ "sl",       "copy",        "",   "ntm"       ],  # 1
-[ "sl",       "repeat-copy", "",   "dnc"       ]   # 2
+[ "sl",       "repeat-copy", "",   "ntm"       ],  # 2
+[ "sl",       "copy",        "",   "dnc"       ],  # 3
+[ "sl",       "repeat-copy", "",   "dnc"       ]   # 4
 ]
 
 class Params(object):   # NOTE: shared across all modules
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.verbose     = 0            # 0(warning) | 1(info) | 2(debug)
 
         # training signature
-        self.machine     = "daim"       # "machine_id"
-        self.timestamp   = "17080800"   # "yymmdd##"
+        self.machine     = "ecegrid"       # "machine_id"
+        self.timestamp   = "17082300"   # "yymmdd##"
         # training configuration
-        self.mode        = 1            # 1(train) | 2(test model_file)
+        self.mode        = 2            # 1(train) | 2(test model_file)
         self.config      = 1 
 
         self.seed        = 1
@@ -32,15 +34,24 @@ class Params(object):   # NOTE: shared across all modules
         self.visualize   = True         # whether do online plotting and stuff or not
         self.save_best   = False        # save model w/ highest reward if True, otherwise always save the latest model
 
-        self.agent_type, self.env_type, self.game, self.circuit_type = CONFIGS[self.config]
 
         self.use_cuda    = torch.cuda.is_available()
         self.dtype       = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
         # prefix for model/log/visdom
         self.refs        = self.machine + "_" + self.timestamp # NOTE: using this as env for visdom
-        self.root_dir    = os.getcwd()
 
+        # Unpack possible arguments
+        if 'mode' in kwargs and kwargs['mode']:
+            self.mode = kwargs['mode']
+        if 'config' in kwargs and kwargs['config']:
+            self.config = kwargs['config']
+        if 'model' in kwargs and kwargs['model']:
+            self.refs = kwargs['model']
+        self.visualize = kwargs['visualize']
+        self.agent_type, self.env_type, self.game, self.circuit_type = CONFIGS[self.config]
+        
+        self.root_dir    = os.getcwd()
         # model files
         # NOTE: will save the current model to model_name
         self.model_name  = self.root_dir + "/models/" + self.refs + ".pth"
@@ -62,8 +73,8 @@ class Params(object):   # NOTE: shared across all modules
             self.logger.warning("http://localhost:8097/env/" + self.refs)   # open this address on browser
 
 class EnvParams(Params):    # settings for network architecture
-    def __init__(self):
-        super(EnvParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(EnvParams, self).__init__(**kwargs)
 
         self.batch_size = None
         if self.env_type == "copy":
@@ -79,8 +90,8 @@ class EnvParams(Params):    # settings for network architecture
             self.max_repeats_norm = 10.
 
 class ControllerParams(Params):
-    def __init__(self):
-        super(ControllerParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(ControllerParams, self).__init__(**kwargs)
 
         self.batch_size     = None
         self.input_dim      = None  # set after env
@@ -91,8 +102,8 @@ class ControllerParams(Params):
         self.mem_wid        = None  # set after memory
 
 class HeadParams(Params):
-    def __init__(self):
-        super(HeadParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(HeadParams, self).__init__(**kwargs)
 
         self.num_heads = None
         self.batch_size = None
@@ -102,26 +113,26 @@ class HeadParams(Params):
         self.num_allowed_shifts = 3
 
 class WriteHeadParams(HeadParams):
-    def __init__(self):
-        super(WriteHeadParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(WriteHeadParams, self).__init__(**kwargs)
 
 class ReadHeadParams(HeadParams):
-    def __init__(self):
-        super(ReadHeadParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(ReadHeadParams, self).__init__(**kwargs)
         if self.circuit_type == "dnc":
             self.num_read_modes = None
 
 class MemoryParams(Params):
-    def __init__(self):
-        super(MemoryParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(MemoryParams, self).__init__(**kwargs)
 
         self.batch_size = None
         self.mem_hei = None
         self.mem_wid = None
 
 class AccessorParams(Params):
-    def __init__(self):
-        super(AccessorParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(AccessorParams, self).__init__(**kwargs)
 
         self.batch_size = None
         self.hidden_dim = None
@@ -130,13 +141,13 @@ class AccessorParams(Params):
         self.mem_hei = None
         self.mem_wid = None
         self.clip_value = None
-        self.write_head_params = WriteHeadParams()
-        self.read_head_params  = ReadHeadParams()
-        self.memory_params     = MemoryParams()
+        self.write_head_params = WriteHeadParams(**kwargs)
+        self.read_head_params  = ReadHeadParams(**kwargs)
+        self.memory_params     = MemoryParams(**kwargs)
 
 class CircuitParams(Params):# settings for network architecture
-    def __init__(self):
-        super(CircuitParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(CircuitParams, self).__init__(**kwargs)
 
         self.batch_size     = None
         self.input_dim      = None  # set after env
@@ -158,12 +169,12 @@ class CircuitParams(Params):# settings for network architecture
             self.mem_wid         = 16
             self.clip_value      = 20.   # clips controller and circuit output values to in between
 
-        self.controller_params = ControllerParams()
-        self.accessor_params   = AccessorParams()
+        self.controller_params = ControllerParams(**kwargs)
+        self.accessor_params   = AccessorParams(**kwargs)
 
 class AgentParams(Params):  # hyperparameters for drl agents
-    def __init__(self):
-        super(AgentParams, self).__init__()
+    def __init__(self, **kwargs):
+        super(AgentParams, self).__init__(**kwargs)
 
         if self.agent_type == "sl":
             if self.circuit_type == "ntm":
@@ -180,7 +191,7 @@ class AgentParams(Params):  # hyperparameters for drl agents
                 self.eval_freq      = 500
                 self.eval_steps     = 50
                 self.prog_freq      = self.eval_freq
-                self.test_nepisodes = 5
+                self.test_nepisodes = 10
             elif self.circuit_type == "dnc":
                 self.criteria       = nn.BCELoss()
                 self.optim          = optim.RMSprop
@@ -212,8 +223,10 @@ class AgentParams(Params):  # hyperparameters for drl agents
             self.prog_freq      = self.eval_freq
             self.test_nepisodes = 5
 
-        self.env_params     = EnvParams()
-        self.circuit_params = CircuitParams()
+        self.env_params     = EnvParams(**kwargs)
+        self.circuit_params = CircuitParams(**kwargs)
 
 class Options(Params):
-    agent_params  = AgentParams()
+    def __init__(self, **kwargs):
+        super(Options, self).__init__(**kwargs)
+        self.agent_params  = AgentParams(**kwargs)
