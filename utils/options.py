@@ -15,7 +15,8 @@ CONFIGS = [
 [ "sl",       "copy",        "",   "ntm"       ],  # 1
 [ "sl",       "repeat-copy", "",   "ntm"       ],  # 2
 [ "sl",       "copy",        "",   "dnc"       ],  # 3
-[ "sl",       "repeat-copy", "",   "dnc"       ]   # 4
+[ "sl",       "repeat-copy", "",   "dnc"       ],  # 4
+[ "sl",       "associative", "",   "ntm"       ]   # 5
 ]
 
 class Params(object):   # NOTE: shared across all modules
@@ -88,6 +89,11 @@ class EnvParams(Params):    # settings for network architecture
             self.min_repeats   = 1
             self.max_repeats   = 2
             self.max_repeats_norm = 10.
+        elif self.env_type == "associative":
+            self.len_word = 6
+            self.height_word = 3
+            self.min_num_words = 3
+            self.max_num_words = 7
 
 class ControllerParams(Params):
     def __init__(self, **kwargs):
