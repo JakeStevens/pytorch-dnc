@@ -15,10 +15,11 @@ CONFIGS = [
 [ "sl",       "copy",           "",   "ntm"       ],  # 1
 [ "sl",       "repeat-copy",    "",   "ntm"       ],  # 2
 [ "sl",       "associative",    "",   "ntm"       ],  # 3
-[ "sl",       "priority-sort",  "",   "ntm"       ],  # 4
-[ "sl",       "copy",           "",   "dnc"       ],  # 5
-[ "sl",       "repeat-copy",    "",   "dnc"       ],  # 6
-[ "sl",       "associative",    "",   "dnc"       ]   # 7
+[ "sl",       "ngrams",         "",   "ntm"       ],  # 4
+[ "sl",       "priority-sort",  "",   "ntm"       ],  # 5
+[ "sl",       "copy",           "",   "dnc"       ],  # 6
+[ "sl",       "repeat-copy",    "",   "dnc"       ],  # 7
+[ "sl",       "associative",    "",   "dnc"       ]   # 8
 ]
 
 class Params(object):   # NOTE: shared across all modules
@@ -37,9 +38,12 @@ class Params(object):   # NOTE: shared across all modules
         self.visualize   = True         # whether do online plotting and stuff or not
         self.save_best   = False        # save model w/ highest reward if True, otherwise always save the latest model
 
-
-        self.use_cuda    = torch.cuda.is_available()
-        self.dtype       = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+        if 'gpu' in kwargs and kwargs['gpu']:
+            self.use_cuda    = torch.cuda.is_available()
+            self.dtype       = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+        else:
+            self.use_cuda = False
+            self.dtype = torch.FloatTensor
 
         # prefix for model/log/visdom
         self.refs        = self.machine + "_" + self.timestamp # NOTE: using this as env for visdom
@@ -100,6 +104,10 @@ class EnvParams(Params):    # settings for network architecture
             self.len_word = 8
             self.min_num_words = 20
             self.max_num_words = 20
+        elif self.env_type == "ngrams":
+            self.len_word = 1
+            self.min_num_words = 200
+            self.max_num_words = 200
 
 class ControllerParams(Params):
     def __init__(self, **kwargs):
@@ -167,19 +175,49 @@ class CircuitParams(Params):# settings for network architecture
         self.output_dim     = None  # set after env
 
         if self.circuit_type == "ntm":
-            self.hidden_dim      = 100
-            self.num_write_heads = 1
-            self.num_read_heads  = 1
-            self.mem_hei         = 128
-            self.mem_wid         = 20
-            self.clip_value      = 20.   # clips controller and circuit output values to in between
+            if 'controller_size' in kwargs and kwargs['controller_size']:
+                self.hidden_dim = kwargs['controller_size']
+            else:
+                self.hidden_dim = 100
+            if 'num_write_heads' in kwargs and kwargs['num_write_heads']:
+                self.num_write_heads = kwargs['num_write_heads']
+            else:
+                self.num_write_heads = 1
+            if 'num_read_heads' in kwargs and kwargs['num_read_heads']:
+                self.num_read_heads = kwargs['num_read_heads']
+            else:
+                self.num_read_heads  = 1
+            if 'num_mem_slots' in kwargs and kwargs['num_mem_slots']:
+                self.mem_hei = kwargs['num_mem_slots']
+            else:
+                self.mem_hei = 128
+            if 'mem_width' in kwargs and kwargs['mem_width']:
+                self.mem_wid = kwargs['mem_width']
+            else:
+                self.mem_wid = 20
+            self.clip_value = 20.   # clips controller and circuit output values to in between
         elif self.circuit_type == "dnc":
-            self.hidden_dim      = 64
-            self.num_write_heads = 1
-            self.num_read_heads  = 4
-            self.mem_hei         = 16
-            self.mem_wid         = 16
-            self.clip_value      = 20.   # clips controller and circuit output values to in between
+            if 'controller_size' in kwargs and kwargs['controller_size']:
+                self.hidden_dim = kwargs['controller_size']
+            else:
+                self.hidden_dim = 64
+            if 'num_write_heads' in kwargs and kwargs['num_write_heads']:
+                self.num_write_heads = kwargs['num_write_heads']
+            else:
+                self.num_write_heads = 1
+            if 'num_read_heads' in kwargs and kwargs['num_read_heads']:
+                self.num_read_heads = kwargs['num_read_heads']
+            else:
+                self.num_read_heads  = 4
+            if 'num_mem_slots' in kwargs and kwargs['num_mem_slots']:
+                self.mem_hei = kwargs['num_mem_slots']
+            else:
+                self.mem_hei = 16
+            if 'mem_width' in kwargs and kwargs['mem_width']:
+                self.mem_wid = kwargs['mem_width']
+            else:
+                self.mem_wid = 16
+            self.clip_value = 20.   # clips controller and circuit output values to in between
 
         self.controller_params = ControllerParams(**kwargs)
         self.accessor_params   = AccessorParams(**kwargs)
@@ -197,7 +235,6 @@ class AgentParams(Params):  # hyperparameters for drl agents
                 self.batch_size     = 16
                 self.early_stop     = None      # max #steps per episode
                 self.clip_grad      = 50.
-                self.lr             = 1e-4
                 self.optim_eps      = 1e-10     # NOTE: we use this setting to be equivalent w/ the default settings in tensorflow
                 self.optim_alpha    = 0.9       # NOTE: only for rmsprop, alpha is the decay in tensorflow, whose default is 0.9
                 self.eval_freq      = 500
@@ -212,7 +249,6 @@ class AgentParams(Params):  # hyperparameters for drl agents
                 self.batch_size     = 16
                 self.early_stop     = None      # max #steps per episode
                 self.clip_grad      = 50.
-                self.lr             = 1e-4
                 self.optim_eps      = 1e-10     # NOTE: we use this setting to be equivalent w/ the default settings in tensorflow
                 self.optim_alpha    = 0.9       # NOTE: only for rmsprop, alpha is the decay in tensorflow, whose default is 0.9
                 self.eval_freq      = 500
@@ -227,13 +263,16 @@ class AgentParams(Params):  # hyperparameters for drl agents
             self.batch_size     = 16
             self.early_stop     = None      # max #steps per episode
             self.clip_grad      = 50.
-            self.lr             = 1e-4
             self.optim_eps      = 1e-10     # NOTE: we use this setting to be equivalent w/ the default settings in tensorflow
             self.optim_alpha    = 0.9       # NOTE: only for rmsprop, alpha is the decay in tensorflow, whose default is 0.9
             self.eval_freq      = 500
             self.eval_steps     = 50
             self.prog_freq      = self.eval_freq
             self.test_nepisodes = 5
+        if 'lr' in kwargs and kwargs['lr']:
+            self.lr = kwargs['lr'] 
+        else:
+            self.lr = 1e-4
 
         self.env_params     = EnvParams(**kwargs)
         self.circuit_params = CircuitParams(**kwargs)
