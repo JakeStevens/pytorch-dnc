@@ -67,11 +67,12 @@ class SLAgent(Agent):   # for supervised learning tasks
             # NOTE: this part is for examine the heads' weights and memory usage
             # NOTE: only used during testing, cos visualization takes time
             if self.mode == 2 and self.visualize:
-                self.env.visual(input_ts[i,0,:].unsqueeze(0).unsqueeze(1),
-                                self.target_vb.data[i,0,:].unsqueeze(0).unsqueeze(1),
-                                self.mask_ts[i,0,:].unsqueeze(0).unsqueeze(1),
-                                self.output_vb.data[i,0,:].unsqueeze(0).unsqueeze(1))
-                self.circuit.accessor.visual()
+                continue
+                #self.env.visual(input_ts[i,0,:].unsqueeze(0).unsqueeze(1),
+                #                self.target_vb.data[i,0,:].unsqueeze(0).unsqueeze(1),
+                #                self.mask_ts[i,0,:].unsqueeze(0).unsqueeze(1),
+                #                self.output_vb.data[i,0,:].unsqueeze(0).unsqueeze(1))
+                #self.circuit.accessor.visual()
                 #raw_input()
 
         if not self.training and self.visualize:
@@ -147,8 +148,8 @@ class SLAgent(Agent):   # for supervised learning tasks
                 self.logger.warning("Resume Training @ Step: " + str(self.step))
                 should_start_new = True
 
-        print("Network time: " + str(elapsed_time))
-        print("total time:", time.time() - self.start_time)
+        self.logger.warning("Network time: " + str(elapsed_time))
+        self.logger.warning("total time:", time.time() - self.start_time)
 
     def _eval_model(self):
         self.training = False

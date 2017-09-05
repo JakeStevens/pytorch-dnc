@@ -12,6 +12,7 @@ class Env(object):
         self.ind        = env_ind               # NOTE: for creating multiple environment instances
         # general setup
         self.mode       = args.mode             # NOTE: save frames when mode=2
+        self.model_name = args.model_name[:-3] + 'pkl' # Some tests need serialized data
         if self.mode == 2:
             try:
                 import scipy.misc

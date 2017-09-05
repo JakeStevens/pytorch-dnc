@@ -11,12 +11,14 @@ from utils.helpers import loggerConfig
 
 CONFIGS = [
 # agent_type, env_type,      game, circuit_type
-[ "empty",    "repeat-copy", "",   "none"      ],  # 0
-[ "sl",       "copy",        "",   "ntm"       ],  # 1
-[ "sl",       "repeat-copy", "",   "ntm"       ],  # 2
-[ "sl",       "copy",        "",   "dnc"       ],  # 3
-[ "sl",       "repeat-copy", "",   "dnc"       ],  # 4
-[ "sl",       "associative", "",   "ntm"       ]   # 5
+[ "empty",    "repeat-copy",    "",   "none"      ],  # 0
+[ "sl",       "copy",           "",   "ntm"       ],  # 1
+[ "sl",       "repeat-copy",    "",   "ntm"       ],  # 2
+[ "sl",       "associative",    "",   "ntm"       ],  # 3
+[ "sl",       "priority-sort",  "",   "ntm"       ],  # 4
+[ "sl",       "copy",           "",   "dnc"       ],  # 5
+[ "sl",       "repeat-copy",    "",   "dnc"       ],  # 6
+[ "sl",       "associative",    "",   "dnc"       ]   # 7
 ]
 
 class Params(object):   # NOTE: shared across all modules
@@ -94,6 +96,10 @@ class EnvParams(Params):    # settings for network architecture
             self.height_word = 3
             self.min_num_words = 3
             self.max_num_words = 7
+        elif self.env_type == "priority-sort":
+            self.len_word = 8
+            self.min_num_words = 20
+            self.max_num_words = 20
 
 class ControllerParams(Params):
     def __init__(self, **kwargs):
