@@ -5,6 +5,7 @@ import torch
 
 from core.heads.static_head import StaticHead
 
+import time
 class StaticReadHead(StaticHead):
     def __init__(self, args):
         super(StaticReadHead, self).__init__(args)
@@ -39,4 +40,11 @@ class StaticReadHead(StaticHead):
             read_vec_vb:  [batch_size x num_heads x mem_wid]
                        -> read vector of {t}
         """
-        return torch.bmm(self.wl_curr_vb, memory_vb)
+        # Keep track of how many times we are writing
+        self.num_read_operations += 1
+
+        s = time.time()
+        tmp = torch.bmm(self.wl_curr_vb, memory_vb)
+        e = time.time()
+        self.read_time += e - s
+        return tmp

@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 from core.heads.static_head import StaticHead
 
+import time
 class StaticWriteHead(StaticHead):
     def __init__(self, args):
         super(StaticWriteHead, self).__init__(args)
@@ -52,11 +53,17 @@ class StaticWriteHead(StaticHead):
             memory_vb:  [batch_size x mem_hei x mem_wid]
         NOTE: IMPORTANT: https://github.com/deepmind/dnc/issues/10
         """
+        # Keep track of how many times we are writing
+        self.num_write_operations += 1
 
         # first let's do erasion
+        s = time.time()
         weighted_erase_vb = torch.bmm(self.wl_curr_vb.contiguous().view(-1, self.mem_hei, 1),
                                       self.erase_vb.contiguous().view(-1, 1, self.mem_wid)).view(-1, self.num_heads, self.mem_hei, self.mem_wid)
         keep_vb = torch.prod(1. - weighted_erase_vb, dim=1)
         memory_vb = memory_vb * keep_vb
         # finally let's write (do addition)
-        return memory_vb + torch.bmm(self.wl_curr_vb.transpose(1, 2), self.add_vb)
+        tmp = memory_vb + torch.bmm(self.wl_curr_vb.transpose(1,2), self.add_vb)
+        e = time.time()
+        self.write_time += e - s
+        return tmp

@@ -2,3 +2,4 @@
 ./core/*.pyc
 ./core/*/*.pyc
 ./utils/*.pyc
+**.*.swp

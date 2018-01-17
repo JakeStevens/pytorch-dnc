@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
+import time
 class Circuit(nn.Module):   # NOTE: basically this whole module is treated as a custom rnn cell
     def __init__(self, args):
         super(Circuit, self).__init__()
@@ -51,6 +52,18 @@ class Circuit(nn.Module):   # NOTE: basically this whole module is treated as a 
 
         self.logger.warning("<-----------------------------======> Circuit:    {Controller, Accessor}")
 
+        # Initialize Timer Info
+        self.total_time = 0
+        self.controller_time = 0
+        self.mem_access_time = 0
+        self.output_time = 0
+
+    def __del__(self):
+        print("Total Time: " + str(self.total_time))
+        print("Controller Time: " + str(self.controller_time))
+        print("Memory Access Time: " + str(self.mem_access_time))
+        print("Output Time: " + str(self.output_time))
+
     def _init_weights(self):
         raise NotImplementedError("not implemented in base calss")
 
@@ -76,14 +89,25 @@ class Circuit(nn.Module):   # NOTE: basically this whole module is treated as a 
 
     def forward(self, input_vb):
         # NOTE: the operation order must be the following: control, access{write, read}, output
-
         # 1. first feed {input, read_vec_{t-1}} to controller
+        s = time.time()
+        s_tmp = time.time()
         hidden_vb = self.controller.forward(input_vb, self.read_vec_vb)
+        e_tmp = time.time()
+        self.controller_time += e_tmp - s_tmp
         # 2. then we write to memory_{t-1} to get memory_{t}; then read from memory_{t} to get read_vec_{t}
+        s_tmp = time.time()
         self.read_vec_vb = self.accessor.forward(hidden_vb)
+        e_tmp = time.time()
+        self.mem_access_time += e_tmp - s_tmp
         # 3. finally we concat the output from the controller and the current read_vec_{t} to get the final output
+        s_tmp = time.time()
         output_vb = self.hid_to_out(torch.cat((hidden_vb.view(-1, self.hidden_dim),
                                                self.read_vec_vb.view(-1, self.read_vec_dim)), 1))
-
         # we clip the output values here
-        return F.sigmoid(torch.clamp(output_vb, min=-self.clip_value, max=self.clip_value)).view(1, self.batch_size, self.output_dim)
+        tmp = F.sigmoid(torch.clamp(output_vb, min=-self.clip_value, max=self.clip_value)).view(1, self.batch_size, self.output_dim)
+        e_tmp = time.time()
+        self.output_time += e_tmp - s_tmp
+        e = time.time()
+        self.total_time += e - s
+        return tmp

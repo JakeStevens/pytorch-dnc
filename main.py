@@ -57,9 +57,14 @@ help = 'The width of a memory slot.'
 parser.add_argument('--mem_width', action='store', dest='mem_width',
                     type=int, help=help)
 
+# The Controller size (in hidden units)
 help = 'The number of hidden units in the controller network'
 parser.add_argument('--controller_size', action='store',
                     dest='controller_size', type=int, help=help)
+
+# The Learning Rate
+help = 'The learning rate to use (in the form xe-y)'
+parser.add_argument('--lr', action='store', dest='lr', type=float, help=help)
 
 args = parser.parse_args()
 # 1. setting up
@@ -74,6 +79,9 @@ circuit_prototype = CircuitDict[opt.circuit_type]
 agent = AgentDict[opt.agent_type](opt.agent_params,
                                   env_prototype     = env_prototype,
                                   circuit_prototype = circuit_prototype)
+if args.gpu == True:
+    circuit_prototype = torch.nn.DataParallel(circuit_prototype).cuda()
+
 # 6. fit model
 if opt.mode == 1:   # train
     agent.fit_model()

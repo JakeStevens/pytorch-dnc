@@ -9,6 +9,7 @@ from torch.autograd import Variable
 from core.head import Head
 from utils.similarities import batch_cosine_sim
 
+import time
 class StaticHead(Head):
     def __init__(self, args):
         super(StaticHead, self).__init__(args)
@@ -37,9 +38,17 @@ class StaticHead(Head):
             wc_vb:     [batch_size x num_heads x mem_hei]
                     -> the attention weight by content focus
         """
+        # Key Similarity
+        s = time.time()
         K_vb = batch_cosine_sim(self.key_vb, memory_vb)  # [batch_size x num_heads x mem_hei]
+        e = time.time()
+        self.key_similarity_time += e - s
+        # Content-based Weighting
+        s = time.time()
         self.wc_vb = K_vb * self.beta_vb.expand_as(K_vb) # [batch_size x num_heads x mem_hei]
         self.wc_vb = F.softmax(self.wc_vb.transpose(0, 2)).transpose(0, 2)
+        e = time.time()
+        self.content_weighting_time += e - s
 
     def _shift(self, wg_vb, shift_vb):
         """
@@ -84,22 +93,36 @@ class StaticHead(Head):
                      -> the attention weight by location focus
         """
         self.gate_vb = self.gate_vb.expand_as(self.wc_vb)
+        # location interpolation
+        s = time.time()
         wg_vb = self.wc_vb * self.gate_vb + self.wl_prev_vb * (1. - self.gate_vb)
+        e = time.time()
+        self.location_interpolation_time += e - s
+        # shift weighting
+        s = time.time()
         ws_vb = self._shift(wg_vb, self.shift_vb)
+        e = time.time()
+        self.shift_weighting_time += e - s
+        # sharpening final weight
+        s = time.time()
         wp_vb = ws_vb.pow(self.gamma_vb.expand_as(ws_vb))
-        # self.wl_curr_vb = wp_vb / wp_vb.sum(2).expand_as(wp_vb)               # 0.1.12
         self.wl_curr_vb = wp_vb / wp_vb.sum(2, keepdim=True).expand_as(wp_vb)   # 0.2.0
+        e = time.time()
+        self.sharpen_weight_time += e - s
 
     def forward(self, hidden_vb, memory_vb):
         # outputs for computing addressing for heads
         # NOTE: to be consistent w/ the dnc paper, we use
         # NOTE: sigmoid to constrain to [0, 1]
         # NOTE: oneplus to constrain to [1, +inf]
+        s = time.time()
         self.key_vb   = F.tanh(self.hid_2_key(hidden_vb)).view(-1, self.num_heads, self.mem_wid)    # TODO: relu to bias the memory to store positive values ??? check again
         self.beta_vb  = F.softplus(self.hid_2_beta(hidden_vb)).view(-1, self.num_heads, 1)          # beta >=1: https://github.com/deepmind/dnc/issues/9
         self.gate_vb  = F.sigmoid(self.hid_2_gate(hidden_vb)).view(-1, self.num_heads, 1)           # gate /in (0, 1): interpolation gate, blend wl_{t-1} & wc
         self.shift_vb = F.softmax(self.hid_2_shift(hidden_vb).view(-1, self.num_heads, self.num_allowed_shifts).transpose(0, 2)).transpose(0, 2)    # shift: /sum=1
         self.gamma_vb = (1. + F.softplus(self.hid_2_gamma(hidden_vb))).view(-1, self.num_heads, 1)  # gamma >= 1: sharpen the final weights
+        e = time.time()
+        self.addressing_nn_time += e - s
 
         # now we compute the addressing mechanism
         self._content_focus(memory_vb)

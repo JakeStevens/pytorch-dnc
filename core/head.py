@@ -26,6 +26,32 @@ class Head(nn.Module):
         self.mem_wid = args.mem_wid
         self.num_allowed_shifts = args.num_allowed_shifts
 
+        # Initialize timer variables
+        self.key_similarity_time = 0
+        self.content_weighting_time = 0
+        self.location_interpolation_time = 0
+        self.shift_weighting_time = 0
+        self.sharpen_weight_time = 0
+        self.read_time = 0
+        self.write_time = 0
+        self.addressing_nn_time = 0
+
+        # Initialize access counters
+        self.num_read_operations = 0
+        self.num_write_operations = 0
+
+    def __del__(self):
+        print("Heads NN time: " + str(self.addressing_nn_time))
+        print("Key Similarity Time: " + str(self.key_similarity_time))
+        print("Content Weighting Time: " + str(self.content_weighting_time))
+        print("Location Interpolation Time: " + str(self.location_interpolation_time))
+        print("Shift Weighting Time: " + str(self.shift_weighting_time))
+        print("Sharpen Weight Time: " + str(self.sharpen_weight_time))
+        print("Read Time: " + str(self.read_time))
+        print("Write Time: " + str(self.write_time))
+        print("Read Operations: " + str(self.num_read_operations))
+        print("Write Operations: " + str(self.num_write_operations))
+
     def _reset_states(self):
         self.wl_prev_vb = Variable(self.wl_prev_ts).type(self.dtype) # batch_size x num_heads x mem_hei
 
